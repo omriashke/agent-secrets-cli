@@ -1,0 +1,69 @@
+direction: right
+
+source: Project Source {
+  direction: down
+
+  secrets_def: secrets.def {
+    shape: page
+    content: |md
+      ```yaml
+      API_KEY: "OpenAI API key"
+      DB_PASS: "Prod DB password"
+      ```
+    |
+  }
+
+  dot_secrets: .secrets {
+    shape: page
+    style.stroke-dash: 5
+    content: |md
+      ```env
+      API_KEY=sk-abc123
+      DB_PASS=hunter2
+      ```
+    |
+  }
+}
+
+cli: "agent-secrets (Go)" {
+  grid-rows: 2
+  grid-columns: 2
+
+  init: init {shape: hexagon}
+  sync: "sync [-f path] [--watch]" {shape: hexagon}
+  list: "list [-f path]" {shape: hexagon}
+  query: "query <desc> [-f path]" {shape: hexagon}
+  push: push {shape: hexagon}
+}
+
+bundle: Secrets DB {
+  style.stroke-dash: 5
+  tooltip: Internal detail — user only knows it as a file path via -f
+  db: SQLite DB {
+    shape: sql_table
+    uuid: TEXT {constraint: PK}
+    variable_name: TEXT
+    description: TEXT {constraint: "FTS index"}
+    secret_value: TEXT
+  }
+}
+
+remote: Remote Server {
+  direction: down
+  ssh: SSH Auth {shape: diamond}
+  remote_cli: agent-secrets {shape: hexagon}
+  remote_bundle: Bundle {shape: cylinder}
+
+  ssh -> remote_cli: installs
+  ssh -> remote_bundle: uploads
+  remote_cli -> remote_bundle: query
+}
+
+agent: AI Agent {shape: person}
+
+# ── 4 essential flow arrows ───────────────────────────────────
+
+source -> cli: definitions + values
+cli -> bundle: sync
+bundle -> remote: push via SSH
+agent -> bundle: query / list [-f path]

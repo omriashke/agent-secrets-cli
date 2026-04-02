@@ -1,0 +1,34 @@
+direction: right
+
+local: "Local Developer Flow" {
+  direction: down
+
+  l1: "1. Download agent-secrets binary" {shape: rectangle}
+  l2: "2. agent-secrets init" {shape: rectangle}
+  l3: "3. Edit secrets.def" {shape: rectangle}
+  l4: "4. Set values in .secrets" {shape: rectangle}
+  l5: "5. agent-secrets sync [-f path]" {shape: rectangle}
+  l6: "Secrets ready (default: current dir)" {shape: rectangle}
+
+  l1 -> l2 -> l3 -> l4 -> l5 -> l6
+  l3 -> l4: add more {style.stroke-dash: 4}
+  l5 -> l3: --watch re-syncs on change {style.stroke-dash: 4}
+}
+
+remote: "Remote Agent Flow" {
+  direction: down
+
+  r1: "1. agent-secrets push <host>" {shape: rectangle}
+  r2: "SSH Auth" {shape: diamond}
+  r3: "Secrets file uploaded" {shape: rectangle}
+  r4: "CLI installed in PATH" {shape: rectangle}
+  r5: "agent-secrets list [-f path]" {shape: rectangle}
+  r6: "agent-secrets query <desc> [-f path]" {shape: rectangle}
+  r7: "Secret value returned" {shape: rectangle}
+
+  r1 -> r2
+  r2 -> r3: authenticated
+  r3 -> r4 -> r5 -> r6 -> r7
+}
+
+local -> remote: push bundle
