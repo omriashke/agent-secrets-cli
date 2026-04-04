@@ -1,6 +1,6 @@
 direction: right
 
-source: Project Source {
+source: "~/.agent-secrets/" {
   direction: down
 
   secrets_def: secrets.def {
@@ -29,17 +29,14 @@ cli: "agent-secrets (Go)" {
   grid-rows: 2
   grid-columns: 2
 
-  init: init {shape: hexagon}
-  sync: "sync [-f path] [--watch]" {shape: hexagon}
-  list: "list [-f path]" {shape: hexagon}
-  query: "query <desc> [-f path]" {shape: hexagon}
-  push: push {shape: hexagon}
+  list: list {shape: hexagon}
+  query: "query <desc>" {shape: hexagon}
+  push: "push user@host" {shape: hexagon}
 }
 
-bundle: Secrets DB {
+db: Secrets DB {
   style.stroke-dash: 5
-  tooltip: Internal detail — user only knows it as a file path via -f
-  db: SQLite DB {
+  schema: SQLite + FTS5 {
     shape: sql_table
     uuid: TEXT {constraint: PK}
     variable_name: TEXT
@@ -52,18 +49,25 @@ remote: Remote Server {
   direction: down
   ssh: SSH Auth {shape: diamond}
   remote_cli: agent-secrets {shape: hexagon}
-  remote_bundle: Bundle {shape: cylinder}
+  remote_db: Secrets DB {shape: cylinder}
 
   ssh -> remote_cli: installs
-  ssh -> remote_bundle: uploads
-  remote_cli -> remote_bundle: query
+  ssh -> remote_db: uploads
+  remote_cli -> remote_db: query
 }
 
 agent: AI Agent {shape: person}
 
-# ── 4 essential flow arrows ───────────────────────────────────
+# ── Flow ──────────────────────────────────────────────────────
 
-source -> cli: definitions + values
-cli -> bundle: sync
-bundle -> remote: push via SSH
-agent -> bundle: query / list [-f path]
+source -> cli: reads on every command
+cli -> db: auto-syncs on every command
+db -> remote: push via SSH
+agent -> db: query / list
+
+# ── Ordering ──────────────────────────────────────────────────
+
+source -> cli: "" {style.opacity: 0}
+cli -> db: "" {style.opacity: 0}
+db -> remote: "" {style.opacity: 0}
+remote -> agent: "" {style.opacity: 0}

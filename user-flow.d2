@@ -1,34 +1,156 @@
-direction: right
+direction: down
 
-local: "Local Developer Flow" {
+# ═══════════════════════════════════════════════════════════════
+# DAG 1: LOCAL DEVELOPER SETUP
+# ═══════════════════════════════════════════════════════════════
+
+local_setup: Local Developer Setup {
+  style.fill: "#E3F2FD"
+  style.stroke: "#1565C0"
+  style.stroke-width: 2
   direction: down
 
-  l1: "1. Download agent-secrets binary" {shape: rectangle}
-  l2: "2. agent-secrets init" {shape: rectangle}
-  l3: "3. Edit secrets.def" {shape: rectangle}
-  l4: "4. Set values in .secrets" {shape: rectangle}
-  l5: "5. agent-secrets sync [-f path]" {shape: rectangle}
-  l6: "Secrets ready (default: current dir)" {shape: rectangle}
+  download: Download agent-secrets binary {
+    shape: rectangle
+    style.fill: "#BBDEFB"
+  }
 
-  l1 -> l2 -> l3 -> l4 -> l5 -> l6
-  l3 -> l4: add more {style.stroke-dash: 4}
-  l5 -> l3: --watch re-syncs on change {style.stroke-dash: 4}
+  scaffold: "~/.agent-secrets/ scaffolded automatically" {
+    shape: rectangle
+    style.fill: "#E8F5E9"
+  }
+
+  edit_def: "Edit secrets.def" {
+    shape: rectangle
+    style.fill: "#BBDEFB"
+  }
+
+  edit_secrets: "Set values in .secrets" {
+    shape: rectangle
+    style.fill: "#FFECB3"
+  }
+
+  ready: Ready {
+    shape: rectangle
+    style.fill: "#C8E6C9"
+  }
+
+  download -> scaffold
+  scaffold -> edit_def
+  edit_def -> edit_secrets
+  edit_secrets -> ready
+  edit_secrets -> edit_def: add or remove entries {style.stroke-dash: 4}
 }
 
-remote: "Remote Agent Flow" {
+# ═══════════════════════════════════════════════════════════════
+# DAG 2: PUSH TO REMOTE
+# ═══════════════════════════════════════════════════════════════
+
+push_flow: Push to Remote {
+  style.fill: "#F3E5F5"
+  style.stroke: "#6A1B9A"
+  style.stroke-width: 2
   direction: down
 
-  r1: "1. agent-secrets push <host>" {shape: rectangle}
-  r2: "SSH Auth" {shape: diamond}
-  r3: "Secrets file uploaded" {shape: rectangle}
-  r4: "CLI installed in PATH" {shape: rectangle}
-  r5: "agent-secrets list [-f path]" {shape: rectangle}
-  r6: "agent-secrets query <desc> [-f path]" {shape: rectangle}
-  r7: "Secret value returned" {shape: rectangle}
+  push_cmd: "agent-secrets push user@host" {
+    shape: rectangle
+    style.fill: "#E1BEE7"
+  }
 
-  r1 -> r2
-  r2 -> r3: authenticated
-  r3 -> r4 -> r5 -> r6 -> r7
+  ssh_auth: SSH Auth {
+    shape: diamond
+    style.fill: "#FCE4EC"
+  }
+
+  cli_check: CLI installed on remote? {
+    shape: diamond
+    style.fill: "#FFF9C4"
+  }
+
+  ask_permission: Ask user permission to install {
+    shape: rectangle
+    style.fill: "#FFE0B2"
+  }
+
+  user_approves: User approves? {
+    shape: diamond
+    style.fill: "#FFF9C4"
+  }
+
+  install_cli: Install CLI into PATH {
+    shape: rectangle
+    style.fill: "#E8F5E9"
+  }
+
+  abort: Abort {
+    shape: rectangle
+    style.fill: "#FFCDD2"
+  }
+
+  upload: Upload secrets file {
+    shape: rectangle
+    style.fill: "#E1BEE7"
+  }
+
+  done: Remote ready {
+    shape: rectangle
+    style.fill: "#C8E6C9"
+  }
+
+  push_cmd -> ssh_auth
+  ssh_auth -> cli_check: authenticated
+  cli_check -> upload: yes
+  cli_check -> ask_permission: no
+  ask_permission -> user_approves
+  user_approves -> install_cli: approved
+  user_approves -> abort: denied {style.stroke-dash: 4}
+  install_cli -> upload
+  upload -> done
 }
 
-local -> remote: push bundle
+# ═══════════════════════════════════════════════════════════════
+# DAG 3: AGENT QUERIES SECRETS
+# ═══════════════════════════════════════════════════════════════
+
+agent_flow: Agent Queries Secrets {
+  style.fill: "#E8F5E9"
+  style.stroke: "#2E7D32"
+  style.stroke-width: 2
+  direction: down
+
+  list_cmd: "agent-secrets list" {
+    shape: rectangle
+    style.fill: "#C8E6C9"
+  }
+
+  auto_sync: Auto-sync from secrets.def + .secrets {
+    shape: rectangle
+    style.fill: "#DCEDC8"
+  }
+
+  pick: Agent picks relevant secret {
+    shape: rectangle
+    style.fill: "#C8E6C9"
+  }
+
+  query_cmd: "agent-secrets query <desc>" {
+    shape: rectangle
+    style.fill: "#C8E6C9"
+  }
+
+  fts: FTS5 search on descriptions {
+    shape: rectangle
+    style.fill: "#DCEDC8"
+  }
+
+  result: Secret value returned {
+    shape: rectangle
+    style.fill: "#A5D6A7"
+  }
+
+  list_cmd -> auto_sync
+  auto_sync -> pick
+  pick -> query_cmd
+  query_cmd -> fts
+  fts -> result
+}
