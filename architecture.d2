@@ -32,6 +32,7 @@ cli: "agent-secrets (Go)" {
   list: list {shape: hexagon}
   query: "query <desc>" {shape: hexagon}
   push: "push user@host" {shape: hexagon}
+  pull: "pull user@host" {shape: hexagon}
 }
 
 db: Secrets DB {
@@ -63,6 +64,7 @@ agent: AI Agent {shape: person}
 source -> cli: reads on every command
 cli -> db: auto-syncs on every command
 db -> remote: push via SSH
+remote -> db: pull via SSH
 agent -> db: query / list
 
 # ── Ordering ──────────────────────────────────────────────────

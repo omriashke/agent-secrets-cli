@@ -109,10 +109,50 @@ push_flow: Push to Remote {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# DAG 3: AGENT QUERIES SECRETS
+# DAG 3: PULL FROM REMOTE
 # ═══════════════════════════════════════════════════════════════
 
-agent_flow: Agent Queries Secrets {
+pull_flow: Pull from Remote {
+  style.fill: "#E0F7FA"
+  style.stroke: "#00838F"
+  style.stroke-width: 2
+  direction: down
+
+  pull_cmd: "agent-secrets pull user@host" {
+    shape: rectangle
+    style.fill: "#B2EBF2"
+  }
+
+  pull_ssh: SSH Auth {
+    shape: diamond
+    style.fill: "#FCE4EC"
+  }
+
+  download: Download secrets file from remote {
+    shape: rectangle
+    style.fill: "#B2EBF2"
+  }
+
+  overwrite: "Overwrite ~/.agent-secrets/" {
+    shape: rectangle
+    style.fill: "#FFECB3"
+  }
+
+  pull_done: Local secrets up to date {
+    shape: rectangle
+    style.fill: "#A5D6A7"
+  }
+
+  pull_cmd -> pull_ssh
+  pull_ssh -> download: authenticated
+  download -> overwrite -> pull_done
+}
+
+# ═══════════════════════════════════════════════════════════════
+# DAG 4: AGENT QUERIES SECRETS
+# ═══════════════════════════════════════════════════════════════
+
+agent_flow: "Agent Queries Secrets" {
   style.fill: "#E8F5E9"
   style.stroke: "#2E7D32"
   style.stroke-width: 2
