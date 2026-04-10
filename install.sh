@@ -3,7 +3,6 @@ set -e
 
 REPO="omriashke/agent-secrets-cli"
 BIN_NAME="agent-secrets"
-INSTALL_DIR="/usr/local/bin"
 
 # Detect OS and architecture
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
@@ -43,10 +42,23 @@ echo "Installing ${BIN_NAME} ${LATEST} (${OS}/${ARCH})..."
 curl -sSL "$URL" -o "/tmp/${BIN_NAME}"
 chmod +x "/tmp/${BIN_NAME}"
 
-if [ -w "$INSTALL_DIR" ]; then
-  mv "/tmp/${BIN_NAME}" "${INSTALL_DIR}/${BIN_NAME}"
+# Pick install directory: prefer /usr/local/bin if writable, then ~/bin
+if [ -w "/usr/local/bin" ]; then
+  INSTALL_DIR="/usr/local/bin"
 else
-  sudo mv "/tmp/${BIN_NAME}" "${INSTALL_DIR}/${BIN_NAME}"
+  INSTALL_DIR="$HOME/.local/bin"
+  mkdir -p "$INSTALL_DIR"
 fi
 
+mv "/tmp/${BIN_NAME}" "${INSTALL_DIR}/${BIN_NAME}"
 echo "${BIN_NAME} installed to ${INSTALL_DIR}/${BIN_NAME}"
+
+# Remind the user to add ~/bin to PATH if needed
+case ":$PATH:" in
+  *":${INSTALL_DIR}:"*) ;;
+  *)
+    echo ""
+    echo "NOTE: Add ${INSTALL_DIR} to your PATH:"
+    echo "  echo 'export PATH=\"${INSTALL_DIR}:\$PATH\"' >> ~/.zshrc  # or ~/.bashrc"
+    ;;
+esac

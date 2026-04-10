@@ -53,17 +53,12 @@ secrets.def          .secrets
 
 ## Installation
 
-**One-liner (macOS / Linux):**
-
 ```bash
 curl -sSL https://raw.githubusercontent.com/omriashke/agent-secrets-cli/main/install.sh | sh
 ```
 
-**Go install:**
-
-```bash
-go install github.com/omriashke/agent-secrets-cli@latest
-```
+Installs the latest release for your OS and architecture (macOS and Linux, amd64 and arm64).
+Writes to `/usr/local/bin` if writable, otherwise falls back to `~/.local/bin` — no `sudo` required.
 
 On first run, `~/.agent-secrets/` is scaffolded automatically with template files.
 
