@@ -4,5 +4,8 @@ agent-secrets
 # goreleaser output
 dist/
 
+# Secrets
+.env
+
 # macOS
 .DS_Store
