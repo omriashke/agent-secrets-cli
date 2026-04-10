@@ -35,10 +35,10 @@ func remoteAgentSecretsDir(client *gossh.Client) (string, error) {
 	return home + "/.agent-secrets", nil
 }
 
-// Push uploads the local DB file to the remote server.
-// If the CLI is not installed on the remote, it prompts the user for permission
-// to install it via the install script.
-func Push(client *gossh.Client, localDBPath string, stdin io.Reader, stdout io.Writer) error {
+// Push uploads secrets.def and .secrets to the remote server.
+// The remote CLI will auto-sync its own DB on next use.
+// If the CLI is not installed on the remote, it prompts the user for permission.
+func Push(client *gossh.Client, localDefPath, localSecretsPath string, stdin io.Reader, stdout io.Writer) error {
 	if err := ensureCLI(client, stdin, stdout); err != nil {
 		return err
 	}
@@ -46,7 +46,10 @@ func Push(client *gossh.Client, localDBPath string, stdin io.Reader, stdout io.W
 	if err != nil {
 		return err
 	}
-	return uploadFile(client, localDBPath, remoteDir+"/db")
+	if err := uploadFile(client, localDefPath, remoteDir+"/secrets.def"); err != nil {
+		return err
+	}
+	return uploadFile(client, localSecretsPath, remoteDir+"/.secrets")
 }
 
 func ensureCLI(client *gossh.Client, stdin io.Reader, stdout io.Writer) error {
@@ -109,7 +112,7 @@ func uploadFile(client *gossh.Client, localPath, remotePath string) error {
 
 	src, err := os.Open(localPath)
 	if err != nil {
-		return fmt.Errorf("cannot open local db: %w", err)
+		return fmt.Errorf("cannot open local file %s: %w", localPath, err)
 	}
 	defer src.Close()
 

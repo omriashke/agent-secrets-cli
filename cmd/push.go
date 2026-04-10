@@ -62,7 +62,7 @@ var pushCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		if err := internalssh.Push(client, dbPath, os.Stdin, os.Stdout); err != nil {
+		if err := internalssh.Push(client, defPath, secretsPath, os.Stdin, os.Stdout); err != nil {
 			return err
 		}
 
@@ -91,7 +91,11 @@ var pullCmd = &cobra.Command{
 			identity = remote.IdentityFile
 		}
 
-		dbPath, err := config.DBPath()
+		defPath, err := config.DefPath()
+		if err != nil {
+			return err
+		}
+		secretsPath, err := config.SecretsPath()
 		if err != nil {
 			return err
 		}
@@ -103,7 +107,7 @@ var pullCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		if err := internalssh.Pull(client, dbPath); err != nil {
+		if err := internalssh.Pull(client, defPath, secretsPath); err != nil {
 			return err
 		}
 
