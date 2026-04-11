@@ -1,12 +1,5 @@
 <div align="center">
 
-<pre>
-          .--.
-         /.-. '----------.
-         \'-' .--"--""-"-'
-          '--'
-</pre>
-
 # agent-secrets
 
 **A CLI-first secrets manager built for AI agents**
