@@ -286,4 +286,4 @@ agent-secrets-cli/
 
 ## License
 
-MIT
+Apache 2.0
