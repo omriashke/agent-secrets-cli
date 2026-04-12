@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/omriashke/agent-secrets-cli/internal/config"
 	"github.com/omriashke/agent-secrets-cli/internal/db"
+	"github.com/omriashke/agent-secrets-cli/internal/diff"
 	internalssh "github.com/omriashke/agent-secrets-cli/internal/ssh"
 	"github.com/spf13/cobra"
 )
@@ -14,7 +16,10 @@ import (
 var pushCmd = &cobra.Command{
 	Use:   "push [user@host]",
 	Short: "Push secrets to a remote server",
-	Args:  cobra.MaximumNArgs(1),
+	Long: `Push local secrets to a remote server over SSH. Before overwriting,
+shows a diff of descriptions and values that will change and asks for
+confirmation. Use --yes to skip the prompt.`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		remote, err := config.LoadRemote()
 		if err != nil {
@@ -62,7 +67,39 @@ var pushCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		if err := internalssh.Push(client, defPath, secretsPath, os.Stdin, os.Stdout); err != nil {
+		if err := internalssh.EnsureCLI(client, os.Stdin, os.Stdout); err != nil {
+			return err
+		}
+
+		tmpDef, tmpSecrets, err := internalssh.DownloadToTemp(client)
+		if err != nil {
+			fmt.Println("Remote has no existing secrets — this will be a fresh push.")
+		} else {
+			defer os.Remove(tmpDef)
+			defer os.Remove(tmpSecrets)
+
+			changes, err := diff.ComputeChanges(defPath, secretsPath, tmpDef, tmpSecrets)
+			if err != nil {
+				return fmt.Errorf("cannot compute diff: %w", err)
+			}
+
+			if len(changes) == 0 {
+				fmt.Println("No differences found — push is a no-op.")
+				return nil
+			}
+
+			diff.PrintChanges(os.Stdout, changes, "push")
+
+			yes, _ := cmd.Flags().GetBool("yes")
+			if !yes {
+				if !confirmPrompt("Proceed with push?") {
+					fmt.Println("Aborted.")
+					return nil
+				}
+			}
+		}
+
+		if err := internalssh.PushFiles(client, defPath, secretsPath); err != nil {
 			return err
 		}
 
@@ -74,7 +111,10 @@ var pushCmd = &cobra.Command{
 var pullCmd = &cobra.Command{
 	Use:   "pull [user@host]",
 	Short: "Pull secrets from a remote server",
-	Args:  cobra.MaximumNArgs(1),
+	Long: `Pull secrets from a remote server over SSH. Before overwriting local
+files, shows a diff of descriptions and values that will change and asks
+for confirmation. Use --yes to skip the prompt.`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		remote, err := config.LoadRemote()
 		if err != nil {
@@ -107,6 +147,35 @@ var pullCmd = &cobra.Command{
 		}
 		defer client.Close()
 
+		tmpDef, tmpSecrets, err := internalssh.DownloadToTemp(client)
+		if err != nil {
+			return fmt.Errorf("cannot download remote secrets: %w", err)
+		}
+		defer os.Remove(tmpDef)
+		defer os.Remove(tmpSecrets)
+
+		// Diff: remote (incoming) vs local (current).
+		// ComputeChanges treats first pair as "new" and second as "old" (destination).
+		changes, err := diff.ComputeChanges(tmpDef, tmpSecrets, defPath, secretsPath)
+		if err != nil {
+			return fmt.Errorf("cannot compute diff: %w", err)
+		}
+
+		if len(changes) == 0 {
+			fmt.Println("No differences found — pull is a no-op.")
+			return nil
+		}
+
+		diff.PrintChanges(os.Stdout, changes, "pull")
+
+		yes, _ := cmd.Flags().GetBool("yes")
+		if !yes {
+			if !confirmPrompt("Proceed with pull?") {
+				fmt.Println("Aborted.")
+				return nil
+			}
+		}
+
 		if err := internalssh.Pull(client, defPath, secretsPath); err != nil {
 			return err
 		}
@@ -114,6 +183,14 @@ var pullCmd = &cobra.Command{
 		fmt.Printf("Secrets pulled from %s@%s successfully.\n", user, host)
 		return nil
 	},
+}
+
+func confirmPrompt(question string) bool {
+	fmt.Printf("%s [y/N] ", question)
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	answer := strings.TrimSpace(strings.ToLower(scanner.Text()))
+	return answer == "y" || answer == "yes"
 }
 
 // resolveUserHost picks user@host from CLI args, falling back to config.
@@ -136,4 +213,9 @@ func parseUserHost(arg string) (user, host string, err error) {
 		return "", "", fmt.Errorf("invalid format %q — expected user@host", arg)
 	}
 	return parts[0], parts[1], nil
+}
+
+func init() {
+	pushCmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt")
+	pullCmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt")
 }

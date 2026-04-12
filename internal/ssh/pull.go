@@ -29,6 +29,47 @@ func Pull(client *gossh.Client, localDefPath, localSecretsPath string) error {
 	return downloadFile(sc, remoteDir+"/.secrets", localSecretsPath)
 }
 
+// DownloadToTemp downloads the remote secrets.def and .secrets to temporary
+// files and returns their paths. The caller is responsible for cleanup.
+func DownloadToTemp(client *gossh.Client) (tmpDefPath, tmpSecretsPath string, err error) {
+	remoteDir, err := remoteAgentSecretsDir(client)
+	if err != nil {
+		return "", "", err
+	}
+
+	sc, err := sftp.NewClient(client)
+	if err != nil {
+		return "", "", fmt.Errorf("cannot open SFTP session: %w", err)
+	}
+	defer sc.Close()
+
+	tmpDef, err := os.CreateTemp("", "agent-secrets-remote-def-*")
+	if err != nil {
+		return "", "", fmt.Errorf("cannot create temp file: %w", err)
+	}
+	tmpDef.Close()
+
+	tmpSecrets, err := os.CreateTemp("", "agent-secrets-remote-secrets-*")
+	if err != nil {
+		os.Remove(tmpDef.Name())
+		return "", "", fmt.Errorf("cannot create temp file: %w", err)
+	}
+	tmpSecrets.Close()
+
+	if err := downloadFile(sc, remoteDir+"/secrets.def", tmpDef.Name()); err != nil {
+		os.Remove(tmpDef.Name())
+		os.Remove(tmpSecrets.Name())
+		return "", "", err
+	}
+	if err := downloadFile(sc, remoteDir+"/.secrets", tmpSecrets.Name()); err != nil {
+		os.Remove(tmpDef.Name())
+		os.Remove(tmpSecrets.Name())
+		return "", "", err
+	}
+
+	return tmpDef.Name(), tmpSecrets.Name(), nil
+}
+
 func downloadFile(sc *sftp.Client, remotePath, localPath string) error {
 	src, err := sc.Open(remotePath)
 	if err != nil {

@@ -34,14 +34,35 @@ Both files use the same format: `VARIABLE_NAME="value"`
         --json        Output as JSON.
         Example: agent-secrets query "OpenAI API key for GPT-4"
 
-    agent-secrets edit
-        Open secrets.def and .secrets in $EDITOR.
+    agent-secrets add <NAME> --description "<desc>" --value "<val>"
+        Add a new secret. Both --description and --value are required.
+        Example: agent-secrets add OPENAI_API_KEY \
+          --description "OpenAI API key for GPT-4 calls" \
+          --value "sk-abc123..."
 
-    agent-secrets push [user@host] [-i identity_file]
-        Push secrets to a remote server. Installs CLI on remote if needed.
+    agent-secrets delete <NAME> [--yes]
+        Delete a secret by name. Asks for confirmation unless --yes is passed.
+        Aliases: rm, remove
 
-    agent-secrets pull [user@host] [-i identity_file]
+    agent-secrets edit [NAME] [--description "<desc>"] [--value "<val>"]
+        Without arguments, opens secrets.def and .secrets in $EDITOR.
+        With a NAME, updates the secret inline using the provided flags.
+        Example: agent-secrets edit OPENAI_API_KEY --value "sk-new..."
+
+    agent-secrets push [user@host] [-i identity_file] [--yes]
+        Push secrets to a remote server. Shows a diff of descriptions and
+        values that will change and asks for confirmation before overwriting.
+        Use --yes to skip the prompt. Installs CLI on remote if needed.
+
+    agent-secrets pull [user@host] [-i identity_file] [--yes]
         Pull secrets from a remote server to local ~/.agent-secrets/.
+        Shows a diff of descriptions and values that will change and asks
+        for confirmation before overwriting. Use --yes to skip the prompt.
+
+    agent-secrets upgrade [user@host] [--version <ver>]
+        Upgrade agent-secrets on a remote server to the latest version.
+        Use --version to install a specific version (e.g. --version 1.3.0).
+        Example: agent-secrets upgrade deploy@myserver.com --version 1.3.0
 
     agent-secrets skill > <path>
         Print the agent skill file to stdout. Pipe to wherever your

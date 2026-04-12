@@ -26,7 +26,7 @@ func TestSkill_HasFrontmatter(t *testing.T) {
 }
 
 func TestSkill_HasRequiredCommands(t *testing.T) {
-	for _, cmd := range []string{"query", "list", "skill"} {
+	for _, cmd := range []string{"query", "list", "skill", "add", "edit", "delete", "upgrade"} {
 		if !strings.Contains(skill.Content, cmd) {
 			t.Errorf("SKILL.md missing command %q", cmd)
 		}

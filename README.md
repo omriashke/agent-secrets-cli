@@ -83,6 +83,14 @@ Or open both files at once in your `$EDITOR`:
 agent-secrets edit
 ```
 
+Or add secrets directly from the command line:
+
+```bash
+agent-secrets add OPENAI_API_KEY \
+  --description "OpenAI API key for GPT-4 calls" \
+  --value "sk-abc123..."
+```
+
 **3. Use from an agent:**
 
 ```bash
@@ -143,32 +151,87 @@ agent-secrets query "payment processing"
 
 The search runs against descriptions, not variable names — so agents don't need to know the exact variable name, just what the secret is for.
 
-### `edit`
+### `add <NAME>`
 
-Open `secrets.def` and `.secrets` side-by-side in your `$EDITOR` (falls back to `vi`).
+Add a new secret with a description and value.
 
 ```bash
-agent-secrets edit
+agent-secrets add OPENAI_API_KEY \
+  --description "OpenAI API key for GPT-4 calls" \
+  --value "sk-abc123..."
+# Secret OPENAI_API_KEY added.
 ```
+
+| Flag | Description |
+|---|---|
+| `--description` | Human-readable description for agents (required) |
+| `--value` | Actual secret value (required) |
+
+### `edit [NAME]`
+
+Without arguments, opens `secrets.def` and `.secrets` side-by-side in your `$EDITOR` (falls back to `vi`).
+
+With a NAME, updates the secret inline using `--description` and/or `--value`:
+
+```bash
+agent-secrets edit                                          # open in $EDITOR
+agent-secrets edit OPENAI_API_KEY --value "sk-new..."       # update value only
+agent-secrets edit OPENAI_API_KEY --description "New desc"  # update description only
+```
+
+| Flag | Description |
+|---|---|
+| `--description` | New description for the secret |
+| `--value` | New value for the secret |
+
+### `delete <NAME>`
+
+Delete a secret by name. Asks for confirmation unless `--yes` is passed.
+
+```bash
+agent-secrets delete OPENAI_API_KEY
+# Delete OPENAI_API_KEY (OpenAI API key for GPT-4 calls)? [y/N] y
+# Secret OPENAI_API_KEY deleted.
+
+agent-secrets delete OPENAI_API_KEY --yes   # skip confirmation
+```
+
+Aliases: `rm`, `remove`
 
 ### `push [user@host]`
 
-Push your secrets to a remote server over SSH. If `agent-secrets` is not installed on the remote, you will be prompted to install it automatically.
+Push your secrets to a remote server over SSH. Shows a diff of what will change (descriptions and masked values) and asks for confirmation before overwriting. If `agent-secrets` is not installed on the remote, you will be prompted to install it automatically.
 
 ```bash
 agent-secrets push deploy@myserver.com
 agent-secrets push deploy@myserver.com -i ~/.ssh/my_key
+agent-secrets push deploy@myserver.com --yes   # skip confirmation
 ```
 
 Auth is attempted in order: SSH agent → key file → password prompt.
 
 ### `pull [user@host]`
 
-Pull secrets from a remote server back to your local `~/.agent-secrets/`.
+Pull secrets from a remote server back to your local `~/.agent-secrets/`. Shows a diff of what will change and asks for confirmation before overwriting.
 
 ```bash
 agent-secrets pull deploy@myserver.com
+agent-secrets pull deploy@myserver.com --yes   # skip confirmation
 ```
+
+### `upgrade [user@host]`
+
+Upgrade `agent-secrets` on a remote server. Defaults to the latest release; use `--version` to pin an exact version.
+
+```bash
+agent-secrets upgrade deploy@myserver.com                     # latest
+agent-secrets upgrade deploy@myserver.com --version 1.3.0     # exact version
+agent-secrets upgrade                                          # uses config defaults
+```
+
+| Flag | Description |
+|---|---|
+| `--version` | Specific version to install (e.g. `1.3.0`) — defaults to latest |
 
 ### `skill`
 
@@ -266,11 +329,13 @@ agent-secrets --instructions
 
 ```
 agent-secrets-cli/
-├── cmd/                    # Cobra commands (list, query, push, pull, edit, version, skill)
+├── cmd/                    # Cobra commands (list, query, add, edit, delete, push, pull, upgrade, version, skill)
 ├── internal/
 │   ├── config/             # ~/.agent-secrets/ path resolution + scaffolding
 │   ├── parser/             # dotenv parser + merge/validation
 │   ├── db/                 # SQLite schema, auto-sync, FTS5 query
+│   ├── diff/               # Diff computation + display for push/pull
+│   ├── fileutil/           # Dotenv file read/write helpers
 │   ├── ssh/                # SSH dial, SFTP push/pull, remote install
 │   ├── skill/              # go:embed SKILL.md
 │   └── instructions/       # go:embed INSTRUCTIONS.md

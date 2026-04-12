@@ -39,9 +39,15 @@ func remoteAgentSecretsDir(client *gossh.Client) (string, error) {
 // The remote CLI will auto-sync its own DB on next use.
 // If the CLI is not installed on the remote, it prompts the user for permission.
 func Push(client *gossh.Client, localDefPath, localSecretsPath string, stdin io.Reader, stdout io.Writer) error {
-	if err := ensureCLI(client, stdin, stdout); err != nil {
+	if err := EnsureCLI(client, stdin, stdout); err != nil {
 		return err
 	}
+	return PushFiles(client, localDefPath, localSecretsPath)
+}
+
+// PushFiles uploads secrets.def and .secrets to the remote without checking
+// for CLI installation. Use EnsureCLI separately if needed.
+func PushFiles(client *gossh.Client, localDefPath, localSecretsPath string) error {
 	remoteDir, err := remoteAgentSecretsDir(client)
 	if err != nil {
 		return err
@@ -52,7 +58,9 @@ func Push(client *gossh.Client, localDefPath, localSecretsPath string, stdin io.
 	return uploadFile(client, localSecretsPath, remoteDir+"/.secrets")
 }
 
-func ensureCLI(client *gossh.Client, stdin io.Reader, stdout io.Writer) error {
+// EnsureCLI checks whether agent-secrets is installed on the remote and
+// prompts the user to install it if missing.
+func EnsureCLI(client *gossh.Client, stdin io.Reader, stdout io.Writer) error {
 	session, err := client.NewSession()
 	if err != nil {
 		return fmt.Errorf("cannot open SSH session: %w", err)

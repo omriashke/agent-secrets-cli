@@ -34,8 +34,7 @@ func init() {
 
 	rootCmd.SetHelpTemplate(instructions.Content + "\n")
 
-	rootCmd.AddCommand(listCmd, queryCmd, pushCmd, pullCmd, skillCmd, versionCmd, editCmd)
-	// pullCmd is defined in push.go alongside pushCmd
+	rootCmd.AddCommand(listCmd, queryCmd, pushCmd, pullCmd, skillCmd, versionCmd, editCmd, addCmd, deleteCmd, upgradeCmd)
 }
 
 // Execute is the entry point called from main.
