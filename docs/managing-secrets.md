@@ -147,13 +147,28 @@ With `--json`:
 ## Querying by meaning
 
 ```bash
-agent-secrets query "<description>" [--value-only] [--json]
+agent-secrets query "<description>" [--value-only] [--json] [--top N]
 ```
 
 The search runs against descriptions using full-text search — agents don't need to know variable names, just what the secret is for.
 
+By default, the query automatically returns all closely-ranked matches. A precise query returns one result; a vague query returns several.
+
 ```bash
-agent-secrets query "payment processing"
+# Precise query — one result
+agent-secrets query "Stripe payment key"
+# name:        STRIPE_SECRET
+# description: Stripe secret key for payment processing
+# value:       sk_live_xyz789
+
+# Vague query — multiple close matches returned automatically
+agent-secrets query "API key"
+# [1]
+# name:        OPENAI_API_KEY
+# description: OpenAI API key for GPT-4 calls
+# value:       sk-abc123...
+#
+# [2]
 # name:        STRIPE_SECRET
 # description: Stripe secret key for payment processing
 # value:       sk_live_xyz789
@@ -161,6 +176,30 @@ agent-secrets query "payment processing"
 agent-secrets query "payment processing" --value-only
 # sk_live_xyz789
 ```
+
+### Forcing exact result count
+
+Use `--top N` to override auto-detection and force exactly N results:
+
+```bash
+agent-secrets query "API key" --top 1
+# name:        OPENAI_API_KEY
+# description: OpenAI API key for GPT-4 calls
+# value:       sk-abc123...
+
+agent-secrets query "API key" --top 3
+# [1]
+# name:        OPENAI_API_KEY
+# ...
+# [2]
+# name:        STRIPE_SECRET
+# ...
+# [3]
+# name:        TRELLO_API_KEY
+# ...
+```
+
+Works with `--json` (returns an array) and `--value-only` (prints one value per line).
 
 ---
 

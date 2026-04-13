@@ -19,9 +19,13 @@ Secrets are stored in `~/.agent-secrets/` and retrieved by describing what you n
 agent-secrets list
 
 # Retrieve a secret by meaning — returns the value on stdout
+# Precise queries return one result; vague queries auto-return multiple close matches
 agent-secrets query "OpenAI API key for GPT-4"
 agent-secrets query "Postgres password for production"
 agent-secrets query "Stripe secret key"
+
+# Force exactly N results (overrides auto-detection)
+agent-secrets query "API key" --top 3
 ```
 
 ## Add, edit, and delete secrets

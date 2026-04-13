@@ -2,14 +2,19 @@
 
 ## How agents use secrets
 
-Agents find secrets by describing what they need in plain language. The CLI searches descriptions using full-text search and returns the matching value:
+Agents find secrets by describing what they need in plain language. The CLI searches descriptions using full-text search and automatically returns the most relevant matches:
 
 ```bash
+# Precise query — returns one result
 agent-secrets query "OpenAI API key for GPT-4"
 # → sk-abc123...
+
+# Vague query — returns multiple close matches automatically
+agent-secrets query "API key"
+# → [1] OPENAI_API_KEY  [2] STRIPE_SECRET
 ```
 
-Agents never need to know variable names — just what the secret is for.
+Agents never need to know variable names — just what the secret is for. Use `--top N` to force an exact number of results.
 
 ---
 

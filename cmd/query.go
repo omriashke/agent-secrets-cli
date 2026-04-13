@@ -37,7 +37,15 @@ var queryCmd = &cobra.Command{
 			return err
 		}
 
-		secret, err := db.Query(database, args[0])
+		topExplicit := cmd.Flags().Changed("top")
+		top, _ := cmd.Flags().GetInt("top")
+
+		var secrets []db.Secret
+		if topExplicit {
+			secrets, err = db.QueryTop(database, args[0], top)
+		} else {
+			secrets, err = db.QueryAuto(database, args[0])
+		}
 		if err != nil {
 			return err
 		}
@@ -45,24 +53,60 @@ var queryCmd = &cobra.Command{
 		valueOnly, _ := cmd.Flags().GetBool("value-only")
 		asJSON, _ := cmd.Flags().GetBool("json")
 
-		switch {
-		case asJSON:
-			return json.NewEncoder(cmd.OutOrStdout()).Encode(map[string]string{
-				"name":        secret.Name,
-				"description": secret.Description,
-				"value":       secret.Value,
-			})
-		case valueOnly:
-			fmt.Fprintln(cmd.OutOrStdout(), secret.Value)
-		default:
-			fmt.Fprintf(cmd.OutOrStdout(), "name:        %s\ndescription: %s\nvalue:       %s\n",
-				secret.Name, secret.Description, secret.Value)
+		if len(secrets) == 1 {
+			return printSingleResult(cmd, secrets[0], valueOnly, asJSON)
 		}
-		return nil
+		return printMultipleResults(cmd, secrets, valueOnly, asJSON)
 	},
 }
 
+func printSingleResult(cmd *cobra.Command, s db.Secret, valueOnly, asJSON bool) error {
+	switch {
+	case asJSON:
+		return json.NewEncoder(cmd.OutOrStdout()).Encode(map[string]string{
+			"name":        s.Name,
+			"description": s.Description,
+			"value":       s.Value,
+		})
+	case valueOnly:
+		fmt.Fprintln(cmd.OutOrStdout(), s.Value)
+	default:
+		fmt.Fprintf(cmd.OutOrStdout(), "name:        %s\ndescription: %s\nvalue:       %s\n",
+			s.Name, s.Description, s.Value)
+	}
+	return nil
+}
+
+func printMultipleResults(cmd *cobra.Command, secrets []db.Secret, valueOnly, asJSON bool) error {
+	switch {
+	case asJSON:
+		rows := make([]map[string]string, len(secrets))
+		for i, s := range secrets {
+			rows[i] = map[string]string{
+				"name":        s.Name,
+				"description": s.Description,
+				"value":       s.Value,
+			}
+		}
+		return json.NewEncoder(cmd.OutOrStdout()).Encode(rows)
+	case valueOnly:
+		for _, s := range secrets {
+			fmt.Fprintln(cmd.OutOrStdout(), s.Value)
+		}
+	default:
+		for i, s := range secrets {
+			if i > 0 {
+				fmt.Fprintln(cmd.OutOrStdout())
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "[%d]\nname:        %s\ndescription: %s\nvalue:       %s\n",
+				i+1, s.Name, s.Description, s.Value)
+		}
+	}
+	return nil
+}
+
 func init() {
-	queryCmd.Flags().Bool("value-only", false, "Print only the secret value (default behaviour for scripts)")
+	queryCmd.Flags().Bool("value-only", false, "Print only the secret value")
 	queryCmd.Flags().Bool("json", false, "Output as JSON")
+	queryCmd.Flags().Int("top", 1, "Force exactly N results (default: auto-detect by relevance)")
 }

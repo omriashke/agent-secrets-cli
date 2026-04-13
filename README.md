@@ -137,8 +137,23 @@ agent-secrets list --json
 
 Find a secret by meaning using full-text search. Prints name, description, and value by default.
 
+By default, the query automatically returns all closely-ranked matches — a precise query returns one result, a vague query returns several. Use `--top N` to force an exact number of results.
+
 ```bash
-agent-secrets query "payment processing"
+# Precise query — returns one result
+agent-secrets query "Stripe payment key"
+# name:        STRIPE_SECRET
+# description: Stripe secret key for payment processing
+# value:       sk_live_xyz789
+
+# Vague query — automatically returns multiple close matches
+agent-secrets query "API key"
+# [1]
+# name:        OPENAI_API_KEY
+# description: OpenAI API key for GPT-4 calls
+# value:       sk-abc123...
+#
+# [2]
 # name:        STRIPE_SECRET
 # description: Stripe secret key for payment processing
 # value:       sk_live_xyz789
@@ -148,6 +163,7 @@ agent-secrets query "payment processing"
 |---|---|
 | `--value-only` | Print only the raw secret value |
 | `--json` | Output as JSON |
+| `--top N` | Force exactly N results (overrides auto-detection) |
 
 The search runs against descriptions, not variable names — so agents don't need to know the exact variable name, just what the secret is for.
 

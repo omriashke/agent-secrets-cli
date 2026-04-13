@@ -28,11 +28,15 @@ Both files use the same format: `VARIABLE_NAME="value"`
     agent-secrets list [--json]
         List all secret names and descriptions.
 
-    agent-secrets query "<description>" [--json] [--value-only]
+    agent-secrets query "<description>" [--json] [--value-only] [--top N]
         Find a secret by meaning. Prints name, description, and value.
+        By default, returns all closely-ranked matches automatically —
+        a precise query returns one result, a vague query returns several.
         --value-only  Print only the raw secret value (good for scripts).
         --json        Output as JSON.
+        --top N       Force exactly N results (overrides auto-detection).
         Example: agent-secrets query "OpenAI API key for GPT-4"
+        Example: agent-secrets query "API key" --top 3
 
     agent-secrets add <NAME> --description "<desc>" --value "<val>"
         Add a new secret. Both --description and --value are required.

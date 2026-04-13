@@ -263,6 +263,211 @@ DB_PASS="Postgres password for production database"
 	}
 }
 
+func TestQueryTop_ReturnsMultipleResults(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "test.db")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+
+	defPath := filepath.Join(dir, "secrets.def")
+	secretsPath := filepath.Join(dir, ".secrets")
+	os.WriteFile(defPath, []byte(`
+API_KEY="OpenAI API key for GPT-4 calls"
+BACKUP_API_KEY="Backup OpenAI API key for fallback"
+DB_PASS="Postgres password for production database"
+`), 0600)
+	os.WriteFile(secretsPath, []byte("API_KEY=sk-abc\nBACKUP_API_KEY=sk-backup\nDB_PASS=hunter2\n"), 0600)
+	db.AutoSync(database, defPath, secretsPath)
+
+	results, err := db.QueryTop(database, "API key", 3)
+	if err != nil {
+		t.Fatalf("QueryTop: %v", err)
+	}
+	if len(results) < 2 {
+		t.Fatalf("expected at least 2 results for 'API key', got %d", len(results))
+	}
+	// Both API_KEY and BACKUP_API_KEY should match
+	names := map[string]bool{}
+	for _, r := range results {
+		names[r.Name] = true
+	}
+	if !names["API_KEY"] {
+		t.Error("expected API_KEY in results")
+	}
+	if !names["BACKUP_API_KEY"] {
+		t.Error("expected BACKUP_API_KEY in results")
+	}
+}
+
+func TestQueryTop_RespectsLimit(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "test.db")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+
+	defPath := filepath.Join(dir, "secrets.def")
+	secretsPath := filepath.Join(dir, ".secrets")
+	os.WriteFile(defPath, []byte(`
+KEY_A="API key alpha"
+KEY_B="API key beta"
+KEY_C="API key gamma"
+`), 0600)
+	os.WriteFile(secretsPath, []byte("KEY_A=a\nKEY_B=b\nKEY_C=c\n"), 0600)
+	db.AutoSync(database, defPath, secretsPath)
+
+	results, err := db.QueryTop(database, "API key", 2)
+	if err != nil {
+		t.Fatalf("QueryTop: %v", err)
+	}
+	if len(results) > 2 {
+		t.Errorf("expected at most 2 results, got %d", len(results))
+	}
+}
+
+func TestQueryTop_SingleResult(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "test.db")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+
+	defPath := filepath.Join(dir, "secrets.def")
+	secretsPath := filepath.Join(dir, ".secrets")
+	os.WriteFile(defPath, []byte(`API_KEY="OpenAI API key for GPT-4 calls"`+"\n"), 0600)
+	os.WriteFile(secretsPath, []byte("API_KEY=sk-abc\n"), 0600)
+	db.AutoSync(database, defPath, secretsPath)
+
+	results, err := db.QueryTop(database, "OpenAI API key", 1)
+	if err != nil {
+		t.Fatalf("QueryTop: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].Name != "API_KEY" {
+		t.Errorf("Name = %q, want API_KEY", results[0].Name)
+	}
+}
+
+func TestQueryAuto_ReturnsSimilarResults(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "test.db")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+
+	defPath := filepath.Join(dir, "secrets.def")
+	secretsPath := filepath.Join(dir, ".secrets")
+	os.WriteFile(defPath, []byte(`
+API_KEY="OpenAI API key for GPT-4 calls"
+BACKUP_API_KEY="Backup OpenAI API key for fallback"
+DB_PASS="Postgres password for production database"
+`), 0600)
+	os.WriteFile(secretsPath, []byte("API_KEY=sk-abc\nBACKUP_API_KEY=sk-backup\nDB_PASS=hunter2\n"), 0600)
+	db.AutoSync(database, defPath, secretsPath)
+
+	results, err := db.QueryAuto(database, "API key")
+	if err != nil {
+		t.Fatalf("QueryAuto: %v", err)
+	}
+	if len(results) < 2 {
+		t.Fatalf("expected at least 2 results for vague 'API key', got %d", len(results))
+	}
+	names := map[string]bool{}
+	for _, r := range results {
+		names[r.Name] = true
+	}
+	if !names["API_KEY"] {
+		t.Error("expected API_KEY in results")
+	}
+	if !names["BACKUP_API_KEY"] {
+		t.Error("expected BACKUP_API_KEY in results")
+	}
+}
+
+func TestQueryAuto_PreciseQueryReturnsSingle(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "test.db")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+
+	defPath := filepath.Join(dir, "secrets.def")
+	secretsPath := filepath.Join(dir, ".secrets")
+	os.WriteFile(defPath, []byte(`
+API_KEY="OpenAI API key for GPT-4 calls"
+DB_PASS="Postgres password for production database"
+STRIPE="Stripe secret key for payments"
+`), 0600)
+	os.WriteFile(secretsPath, []byte("API_KEY=sk-abc\nDB_PASS=hunter2\nSTRIPE=sk_live\n"), 0600)
+	db.AutoSync(database, defPath, secretsPath)
+
+	results, err := db.QueryAuto(database, "Stripe payments")
+	if err != nil {
+		t.Fatalf("QueryAuto: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result for precise 'Stripe payments', got %d", len(results))
+	}
+	if results[0].Name != "STRIPE" {
+		t.Errorf("Name = %q, want STRIPE", results[0].Name)
+	}
+}
+
+func TestQueryAuto_NotFound(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "test.db")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+
+	defPath := filepath.Join(dir, "secrets.def")
+	secretsPath := filepath.Join(dir, ".secrets")
+	os.WriteFile(defPath, []byte(`API_KEY="OpenAI key"`+"\n"), 0600)
+	os.WriteFile(secretsPath, []byte("API_KEY=sk-abc\n"), 0600)
+	db.AutoSync(database, defPath, secretsPath)
+
+	_, err = db.QueryAuto(database, "something completely unrelated xyz")
+	if err == nil {
+		t.Fatal("expected error for no match, got nil")
+	}
+}
+
+func TestQueryTop_NotFound(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "test.db")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+
+	defPath := filepath.Join(dir, "secrets.def")
+	secretsPath := filepath.Join(dir, ".secrets")
+	os.WriteFile(defPath, []byte(`API_KEY="OpenAI key"`+"\n"), 0600)
+	os.WriteFile(secretsPath, []byte("API_KEY=sk-abc\n"), 0600)
+	db.AutoSync(database, defPath, secretsPath)
+
+	_, err = db.QueryTop(database, "something completely unrelated xyz", 5)
+	if err == nil {
+		t.Fatal("expected error for no match, got nil")
+	}
+}
+
 func TestQuery_NotFound(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")
