@@ -63,13 +63,6 @@ agent-secrets pull user@host    # download secrets from remote
 
 Both commands show a diff of what will change (descriptions and masked values) and ask for confirmation before proceeding. Use `--yes` to skip the prompt.
 
-## Upgrade agent-secrets on a remote server
-
-```bash
-agent-secrets upgrade user@host                  # upgrade to latest
-agent-secrets upgrade user@host --version 1.3.0  # pin exact version
-```
-
 Set defaults in `~/.agent-secrets/config` to avoid typing `user@host` every time:
 
 ```env
